@@ -1,0 +1,18 @@
+the full inventory manager project roadmap and those are the basecs all the project move in the same ABC's
+1- create the project folder 
+2- cd in it and npm init -y in it 
+3- create the server folder and cd in it and npm init -y in it to install cors pg dotenv express 
+4- after installing all of theme mkdir router and cd ..
+5- in the main project folder npm create vite@latest client -- --template react to create the front end react folder 
+Note (when i the vite react it ask you if you want OXLint of EXLint the different between theme is : 
+OXLint is using rust faster limited in plugins and fast linting (linting is the detector of bugs, error's, style issus and bad practices), EXLint using basic js, slower, full of featured linting and plugens  )
+6- cd in client npm i axios and cd ..
+7- go to package.js of the main folder and setup the quick runner insted of run server and client or make 2 terminal use concurrently 
+    a: in the scrept of the package change the test to this : 
+          "scripts": {
+            "dev": "concurrently \"npm run server\" \"npm run client\"",
+            "server": "cd server && node --watch server.js",
+            "client": "cd client && npm run dev"
+            },
+    b: npm i concurrently --save-dev
+and by this you just run node run dev and it will run boath the server and the frontEnd
