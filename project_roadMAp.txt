@@ -16,3 +16,53 @@ OXLint is using rust faster limited in plugins and fast linting (linting is the 
             },
     b: npm i concurrently --save-dev
 and by this you just run node run dev and it will run boath the server and the frontEnd
+8- make repository in the git and push your work in it so any miss you can go back 
+9- start build you DB open pgadming  and create new db with same name of the folder project name 
+10- go to schema then table then open the query tools to start creating the tables you need
+    in this project we have 4 tables Categories, Suppliers, Products, Stock movements each one have specefic condition so 
+    here a simple pg scriplt to create all tables with features it need and insert some data 
+    CREATE TABLE categories (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR (100) UNIQUE NOT NULL
+    );
+
+    CREATE TABLE suppliers(
+        id SERIAL PRIMARY KEY,
+        name VARCHAR (150) NOT NULL,
+        contact_email VARCHAR(150)
+    );
+
+    CREATE TABLE products(
+        id SERIAL PRIMARY KEY,
+        sku VARCHAR(150) UNIQUE NOT NULL,
+        name VARCHAR(150) NOT NULL,
+        category_id INT REFERENCES categories(id) ON DELETE SET NULL,
+        supplier_id INT REFERENCES suppliers(id) ON DELETE SET NULL,
+        quantity INT NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+        reorder_level INT NOT NULL DEFAULT 5,
+        unit_price NUMERIC(10, 2) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE stock_movement (
+        id SERIAL PRIMARY KEY,
+        prodoct_id INT REFERENCES products(id) ON DELETE CASCADE,
+        change_type VARCHAR (10) CHECK (change_type IN ('restock', 'sale', 'adjustment')),
+        note VARCHAR (255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    INSERT INTO categories (name) VALUES ('Electronics'), ('Office supplies'), ('Packaging');
+    INSERT INTO suppliers (name, contact_email) VALUES ('Acme Wholesle', 'orders@acme.test');
+11- after set the DB now need to link it with backEnd in the server folder 
+    A: create db.js
+    B: here a simple link script : 
+        import PG from "pg";
+        const {Pool} = PG;
+        const pool = new Pool({
+            user: process.env.DBuser,
+            password: process.env.DBpassword,
+            host: process.env.DBhost,
+            port: process.env.DBport,
+            database: process.env.DBdatabase
+        });
+        export default pool;
