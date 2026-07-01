@@ -127,4 +127,5 @@ dist
 !.yarn/plugins
 !.yarn/releases
 !.yarn/sdks
-!.yarn/versions
+!.yarn/versions.env
+server/.env
