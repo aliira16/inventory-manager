@@ -66,3 +66,60 @@ and by this you just run node run dev and it will run boath the server and the f
             database: process.env.DBdatabase
         });
         export default pool;
+
+new thing to learn : 
+    in my project i push the .env by missetake before i create the .gitignore and it showed up in the git repo so to remove it need to follow this steps
+    1. find the path of the .env file by send in terminal this line git ls-files | grep -i env
+    2. it will showe in the end the path now need to remove it by send this line git rm --cached path/.env 
+    (in my case is server so git rm --cached server/.env ) 
+    3. then echo ".env" >> .gitignore to verefy that list in the .gitignore 
+    4. git add .gitingnore, commit it and push 
+
+12- now make the backEnd
+    A- make the server.js in the server folder and import all the need from the one you download it and the router
+    here simple preparation : 
+        import e from "express";
+        import cors from "from"
+        import dotenv from "dotenv"
+        import productRoutes from "./router/product.routes.js"
+        import categoryRoutes from "./router/categories.routes.js"
+        import supplierRoutes from "./router/suppliers.routes.js"
+        import movementRoutes from "./router/movements.routes.js"
+
+        dotenv.config();
+        const app = e()
+
+        const PORT = process.env.PORT || 3000
+        app.use(cors()); 
+        app.use(e.json());
+        app.use('/api/products', productRoutes);
+        app.use('/api/categories', categoryRoutes);
+        app.use('/api/suppliers', supplierRoutes);
+        app.use('/api/movements', movementRoutes);
+
+        app.get('/', (req, res)=> res.json({message : 'Inventory Manager API running'}));
+        app.listen(PORT, ()=>console.log(`server running in port ${PORT}`))
+    you see that we import thing we didn't make theme yet but those are pages we gonna make theme based on table we made befor so we import theme bcs we gonna need it 
+
+13- now create the routes 
+    A: firest we will prepare the categories and suppliers routes (categories.routes.js and suppliers.routes.js) bcs the product are depend on theme we need in each one a simple GET and POST requist talking to the db.js file here a simple scripte 
+        import e from "express";
+        import pool from "../db.js"
+
+        const router = e.Router();
+
+        router.get('/', async (req, res) => {
+            const result = await pool.query('SELECT * FROM categories (or suppliers) ORDER BY name');
+            res.json(result.rows);
+        });
+
+        router.post('/', async (req, res) => {
+            const { name } = req.body;
+            if (!name) return res.status(400).json({ error: 'Name required' })
+            const result = await pool.query('INSERT INTO categories (or suppliers) (name) VALUES ($1) RETURNING *')[name];
+            res.status(201).json(result.rows[0]);
+        });
+
+        export default router;
+
+    B: now move to the product routes (products.routes.js)
