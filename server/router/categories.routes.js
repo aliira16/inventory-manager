@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'Name required' })
-    const result = await pool.query('INSERT INTO categories (name) VALUES ($1) RETURNING *')[name];
+    const result = await pool.query('INSERT INTO categories (name) VALUES ($1) RETURNING *',[name]);
     res.status(201).json(result.rows[0]);
 });
 

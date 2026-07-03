@@ -31,3 +31,60 @@ router.get('/', async (req, res) => {
         ORDER BY p.name`, values);
     res.json(result.rows);
 })
+
+// POST /api/products/:id/restock  { quantity, note }
+router.post(('/:id/restock'), async (req, res) => {
+    const { id } = req.params;
+    const { quantity, note } = req.body;
+
+    if (!quantity || quantity <= 0) return res.status(400).json({ error: 'input a valide quantity' });
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const updated = await client.query('UPDATE products SET quantity = quantity + $1 WHERe id = $2 RETURNING *', [quantity, id]);
+        if (updated.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'product not found' });
+        }
+        await client.query(
+            'INSERT INTO stock_movement (product_id, change_type, qunatity, note) VALUES ($1,$2,$3,$4)', [id, quantity, note || null]);
+        await client.query('COMMIT');
+        res.json(updated.rows[0])
+    } catch (error) {
+        await client.query('ROLLBACK');
+        res.status(404).json({ error: 'server ERROR' });
+    } finally {
+        client.release();
+    }
+});
+
+// POST /api/products/:id/sale  { quantity, note }
+
+router.post('/api/products/:id/sale', async (req, res) => {
+    const { id } = req.params;
+    const { quantity, note } = req.body;
+    if (!quantity || quantity <= 0) return res.status(401).json({ error: 'input a valide quantity' });
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+        const product = await client.query('SELECT quantity FROM products WHERE id = $1 FOR UPDATE', [id]);
+        if (product.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'PRODUCT not found' });
+        }
+        if (product.rows[0].quantity < quantity) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'not enough stock for this sale' });
+        }
+        const updated = (await client.query('UPDATE products SET quantity = quantity - $1 WHERE id = $2 RETURNING *', [quantity, id]));
+        await client.query(`INSERT INTO stock_movement (product_id, change_type, quantity, note) VALUES ($1,'sale',$2,$3)`, [id, quantity, note || null]);
+        await client.query('COMMIT');
+        res.json(updated.rows[0]);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: 'SERVER ERROR' })
+    } finally {
+        client.release();
+    }
+})

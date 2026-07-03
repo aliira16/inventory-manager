@@ -123,3 +123,50 @@ new thing to learn :
         export default router;
 
     B: now move to the product routes (products.routes.js)
+    in our case we have 3 things to manage search, filter and lower stock so insted of make each one have it routes and API me make the 3 in 1 go in the products routes js
+    here a full example : 
+        import e from "express";
+        import pool from "../db";
+
+        const router = e.Router();
+
+        // GET /api/products?search=usb&category_id=2&lowStockOnly=true
+
+        router.get('/', async (req, res) => {
+            const { search, category_id, lowStockOnly } = req.query;
+            const conditions = [];
+            const values = [];
+            if (search) {
+                values.push(`%${search}%`);
+                conditions.push(`(p.name ILIKE $${values.length} or p.sku ILIKE $${values.length}`)
+            }
+            if (category_id) {
+                values.push(category_id)
+                conditions.push(`p.category_id = $${values.length}`)
+            }
+            if (lowStockOnly === 'true') {
+                conditions.push('p.quantity <= p.reorder.level')
+            }
+            const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : "";
+            const result = await pool.query(`
+                SELECT p.*, c.name AS category_name, s.name AS supplier_name,
+                (p.quantity <= p.reorder_level) AS low_stock
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.id
+                LEFT JOIN suppliers s ON p.supplier_id = s.id
+                ${where}
+                ORDER BY p.name`, values);
+            res.json(result.rows);
+        })
+        const { search, category_id, lowStockOnly } = req.query
+            → req.query holds everything after the ? in the URL, e.g. /products?search=usb&category_id=2. All three filters are optional — none of this code runs if the frontend sends none of them.
+        conditions / values arrays built up one 'if' at a time
+            → Each active filter appends both a SQL fragment (to conditions) and its actual value (to values), keeping them in sync by array position — values.length always matches the $N placeholder just added.
+        ILIKE
+            → A case-insensitive LIKE — so a search for 'usb' also matches 'USB Cable'. The % wildcards around the search term mean it can match anywhere in the text, not just the start.
+        conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+            → If no filters were sent, this becomes an empty string and the query simply selects everything — the WHERE clause only appears when there's something to filter by.
+        LEFT JOIN categories / LEFT JOIN suppliers
+            → A LEFT JOIN keeps every product row even if it has no category or supplier (NULL foreign key) — an INNER JOIN would silently hide those products, which would be a serious bug in an inventory app.
+        (p.quantity <= p.reorder_level) AS low_stock
+            → A computed column — Postgres evaluates this boolean expression for every row and returns it as a field called low_stock, so the frontend doesn't need to recalculate the same comparison itself.
