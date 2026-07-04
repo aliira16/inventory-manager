@@ -33,6 +33,7 @@ router.get('/', async (req, res) => {
 })
 
 // POST /api/products/:id/restock  { quantity, note }
+
 router.post(('/:id/restock'), async (req, res) => {
     const { id } = req.params;
     const { quantity, note } = req.body;
@@ -88,3 +89,5 @@ router.post('/api/products/:id/sale', async (req, res) => {
         client.release();
     }
 })
+
+export default router;

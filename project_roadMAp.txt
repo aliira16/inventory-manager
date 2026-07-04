@@ -170,3 +170,12 @@ new thing to learn :
             → A LEFT JOIN keeps every product row even if it has no category or supplier (NULL foreign key) — an INNER JOIN would silently hide those products, which would be a serious bug in an inventory app.
         (p.quantity <= p.reorder_level) AS low_stock
             → A computed column — Postgres evaluates this boolean expression for every row and returns it as a field called low_stock, so the frontend doesn't need to recalculate the same comparison itself.
+    C: moving now to restock and sale endpoints now the POST in product.routes.js :
+        Both wrap the quantity update and the movement log in a single database transaction — if either write fails, both roll back.
+        This route follows the exact same BEGIN / COMMIT / ROLLBACK shape as restock, with two important additions.
+        SELECT quantity FROM products WHERE id = $1 FOR UPDATE
+            → FOR UPDATE locks this specific row for the rest of the transaction. Any other transaction trying to sell the same product has to wait until this one finishes (COMMIT or ROLLBACK) before it can read or change that row.
+        if (product.rows[0].quantity < quantity) { ROLLBACK; return 400 }
+            → The core business rule of the whole project: you cannot sell more than you have. This check happens on the server, inside the transaction, using the freshly-locked value — not trusting anything the frontend might have displayed.
+
+
