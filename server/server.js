@@ -1,10 +1,10 @@
 import e from "express";
-import cors from "from"
+import cors from "cors"
 import dotenv from "dotenv"
-import productRoutes from "./router/product.routes.js"
+import productRoutes from "./router/products.routes.js"
 import categoryRoutes from "./router/categories.routes.js"
 import supplierRoutes from "./router/suppliers.routes.js"
-import movementRoutes from "./router/movements.routes.js"
+import movementRoutes from "./router/movement.routes.js"
 
 dotenv.config();
 const app = e()

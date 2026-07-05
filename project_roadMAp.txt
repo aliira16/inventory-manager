@@ -177,5 +177,172 @@ new thing to learn :
             → FOR UPDATE locks this specific row for the rest of the transaction. Any other transaction trying to sell the same product has to wait until this one finishes (COMMIT or ROLLBACK) before it can read or change that row.
         if (product.rows[0].quantity < quantity) { ROLLBACK; return 400 }
             → The core business rule of the whole project: you cannot sell more than you have. This check happens on the server, inside the transaction, using the freshly-locked value — not trusting anything the frontend might have displayed.
+        // POST /api/products/:id/restock  { quantity, note }
+
+        router.post(('/:id/restock'), async (req, res) => {
+            const { id } = req.params;
+            const { quantity, note } = req.body;
+
+            if (!quantity || quantity <= 0) return res.status(400).json({ error: 'input a valide quantity' });
+            const client = await pool.connect();
+            try {
+                await client.query('BEGIN');
+                const updated = await client.query('UPDATE products SET quantity = quantity + $1 WHERe id = $2 RETURNING *', [quantity, id]);
+                if (updated.rows.length === 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(404).json({ error: 'product not found' });
+                }
+                await client.query(
+                    'INSERT INTO stock_movement (product_id, change_type, qunatity, note) VALUES ($1,$2,$3,$4)', [id, quantity, note || null]);
+                await client.query('COMMIT');
+                res.json(updated.rows[0])
+            } catch (error) {
+                await client.query('ROLLBACK');
+                res.status(404).json({ error: 'server ERROR' });
+            } finally {
+                client.release();
+            }
+        });
+
+        // POST /api/products/:id/sale  { quantity, note }
+
+        router.post('/api/products/:id/sale', async (req, res) => {
+            const { id } = req.params;
+            const { quantity, note } = req.body;
+            if (!quantity || quantity <= 0) return res.status(401).json({ error: 'input a valide quantity' });
+            const client = await pool.connect();
+
+            try {
+                await client.query('BEGIN');
+                const product = await client.query('SELECT quantity FROM products WHERE id = $1 FOR UPDATE', [id]);
+                if (product.rows.length === 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(404).json({ error: 'PRODUCT not found' });
+                }
+                if (product.rows[0].quantity < quantity) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ error: 'not enough stock for this sale' });
+                }
+                const updated = (await client.query('UPDATE products SET quantity = quantity - $1 WHERE id = $2 RETURNING *', [quantity, id]));
+                await client.query(`INSERT INTO stock_movement (product_id, change_type, quantity, note) VALUES ($1,'sale',$2,$3)`, [id, quantity, note || null]);
+                await client.query('COMMIT');
+                res.json(updated.rows[0]);
+            } catch (error) {
+                await client.query('ROLLBACK');
+                res.status(500).json({ error: 'SERVER ERROR' })
+            } finally {
+                client.release();
+            }
+        })
+
+        export default router;
 
 
+14- now move to the frontEnd :
+
+    A: start build the App.jsx which is the main core of the frontEnd it handl all the page and other components link in it, it's like the motherBoard of the PC here the code based on our project : 
+
+            import { useState, useEffect } from "react";
+            import axios from "axios";
+            import ProductTable from "./components/productTable";
+            import ProductForm from "./components/ProductForm";
+            import LowStockBanner from "./components/lowStockBanner";
+            import SearchFilterBar from "./components/searchFilterBar";
+            import "./index.css";
+
+            const API_URL = "http://localhost:3000/api";
+
+            function App() {
+            const [prodcuts, setPorducts] = useState([]);
+            const [categories, setCategories] = useState([]);
+            const [summary, setSummary] = useState(null);
+            const [filters, setFilters] = useState({
+                search: '',
+                category_id: '',
+                lowStockOnly: false
+            })
+
+
+        //useEffect it's a react hook same as useState it work is to wait the page runder then run it code
+            useEffect(() => {
+                axios.get(`${API_URL}/categories`).then(res => setCategories(res.data));
+                fetchSummary();
+            }, []);
+            useEffect(() => {
+                fetchProducts();
+            }, [filters]);
+
+        // URLSearchParams it take the params insed of ?name='ali' and make it hard code it take it directly and dynamicly by using the 
+        params.set(key, value) so for example params.set('name', 'ali) => in the URL : ?name=ali 
+            const fetchProducts = async () => {
+                const params = new URLSearchParams();
+                if (filters.search) params.set('search', filters.search);
+                if (filters.categoru_id) params.set('category_id', filters.category_id);
+                if (filters.lowStockOnly) params.set('lowStockOnly', 'true');
+                const res = await axios.get(`${API_URL}/products?${params}`);
+                setPorducts(res.data);
+            }
+
+            const fetchsummary = async () => {
+                const res = await axios.get(`${API_URL}/prodcuts/summary`);
+                setSummary(res.data);
+            };
+
+            const handleAddProduct = async (formData) => {
+                await axios.post(`${API_URL}/products`, formData);
+                fetchProducts();
+                fetchsummary();
+            };
+
+            const handleStockChange = async (id, action, quantity, note) => {
+                await axios.post(`${API_URL}/products/${id}/${action}`, { quantity, note });
+                fetchProducts();
+                fetchsummary();
+            }
+            
+        // Render the component   
+            return (
+                <div className="contain">
+                <h1>📦 Inventory manager</h1>
+                {summary && (
+                    <div className="summary-bar">
+                    <span>Products : {summary.total_products}</span>
+                    <span>Values : ${Number(summary.total_values).toFixed(2)}</span>
+                    <span className="low">Low Stock : {summary.low_stock_count}</span>
+                    <LowStockBanner prodcuts={prodcuts.filter(p => p.low_stock)} />
+                    <SearchFilterBar categories={categories} filter={filters} setFilter={setFilters} />
+                    <ProductForm categories={categories} onAdd={handleAddProduct} />
+                    <ProductTable prodcuts={prodcuts} onStockchange={handleStockChange} />
+                    </div>
+                )}
+                </div>
+            )
+            };
+
+            export default App
+        B: now make the components we need to run in the App.js which is ProductTable, ProductForm, SearchFilterBar and LowStockBanner
+            B1: SearchFilterBar.jsx 
+                export default function SearchFilterBar({ categories, filter, setFilter }) {
+                    return (
+                        <div className="filter-bar">
+                            <input
+                                placeholder="Search by name of SKU..."
+                                values={filter.search}
+                                onChange={(e) => { setFilter({ ...filter, search: e.target.value }) }} />
+                            <select
+                                value={filter.category_id}
+                                onChange={(e) => setFilter({ ...filter, category_id: e.target.value })} >
+                                <option value="">All categories</option>
+                                {categories.map(c => <option key={c.id} value={c.id}>{c.name} </option>)}
+                            </select>
+                            <label>
+                                <input
+                                    type="chackbox"
+                                    checked={filter.lowStockOnly}
+                                    onChange={(e) => { setFilter({ ...filter, lowStockOnly: e.target.checked }) }}
+                                />
+                                Low stock only
+                            </label>
+                        </div>
+                    )
+                }

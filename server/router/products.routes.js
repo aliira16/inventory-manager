@@ -1,5 +1,5 @@
 import e from "express";
-import pool from "../db";
+import pool from "../db.js";
 
 const router = e.Router();
 
@@ -11,14 +11,14 @@ router.get('/', async (req, res) => {
     const values = [];
     if (search) {
         values.push(`%${search}%`);
-        conditions.push(`(p.name ILIKE $${values.length} or p.sku ILIKE $${values.length}`)
+        conditions.push(`(p.name ILIKE $${values.length} or p.sku ILIKE $${values.length})`)
     }
     if (category_id) {
         values.push(category_id)
         conditions.push(`p.category_id = $${values.length}`)
     }
     if (lowStockOnly === 'true') {
-        conditions.push('p.quantity <= p.reorder.level')
+        conditions.push('p.quantity <= p.reorder_level')
     }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : "";
     const result = await pool.query(`
@@ -48,7 +48,7 @@ router.post(('/:id/restock'), async (req, res) => {
             return res.status(404).json({ error: 'product not found' });
         }
         await client.query(
-            'INSERT INTO stock_movement (product_id, change_type, qunatity, note) VALUES ($1,$2,$3,$4)', [id, quantity, note || null]);
+            'INSERT INTO stock_movement (product_id, change_type, qunatity, note) VALUES ($1,$2,$3,$4)', [id, 'restock', quantity, note || null]);
         await client.query('COMMIT');
         res.json(updated.rows[0])
     } catch (error) {
@@ -61,7 +61,7 @@ router.post(('/:id/restock'), async (req, res) => {
 
 // POST /api/products/:id/sale  { quantity, note }
 
-router.post('/api/products/:id/sale', async (req, res) => {
+router.post('/:id/sale', async (req, res) => {
     const { id } = req.params;
     const { quantity, note } = req.body;
     if (!quantity || quantity <= 0) return res.status(401).json({ error: 'input a valide quantity' });

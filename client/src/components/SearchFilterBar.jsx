@@ -3,7 +3,7 @@ export default function SearchFilterBar({ categories, filter, setFilter }) {
         <div className="filter-bar">
             <input
                 placeholder="Search by name of SKU..."
-                values={filter.search}
+                value={filter.search}
                 onChange={(e) => { setFilter({ ...filter, search: e.target.value }) }} />
             <select
                 value={filter.category_id}
@@ -13,7 +13,7 @@ export default function SearchFilterBar({ categories, filter, setFilter }) {
             </select>
             <label>
                 <input
-                    type="chackbox"
+                    type="checkbox"
                     checked={filter.lowStockOnly}
                     onChange={(e) => { setFilter({ ...filter, lowStockOnly: e.target.checked }) }}
                 />
