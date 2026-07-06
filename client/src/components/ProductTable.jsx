@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function ProductTable({ prodcuts, onStockChange }) {
+export default function ProductTable({ products, onStockChange }) {
     const [activeId, setActiveId] = useState(null);
     const [qty, setQty] = useState('');
 
@@ -19,7 +19,7 @@ export default function ProductTable({ prodcuts, onStockChange }) {
                 </tr>
             </thead>
             <tbody>
-                {prodcuts.map(p => {
+                {products.map(p => {
                     return (
                         <tr key={p.id} className={p.low_stock ? 'low-stock-row' : ''}>
                             <td>{p.sku}</td>

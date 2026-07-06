@@ -32,6 +32,20 @@ router.get('/', async (req, res) => {
     res.json(result.rows);
 })
 
+// POST /api/products
+
+router.post(('/'), async (req, res) => {
+    const { name, sku, category_id, supplier_id, quantity, unit_price, reorder_level } = req.body
+    if (!name) return res.status(400).json({ error: 'Name required' });
+    try {
+        const result = await pool.query('INSERT INTO products (name, sku, category_id, supplier_id, quantity, unit_price, reorder_level) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *', [name, sku || null, category_id || null, supplier_id || null, quantity || 0, unit_price || 0, reorder_level || 0]);
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: 'Could not create product' })
+    }
+})
+
+
 // POST /api/products/:id/restock  { quantity, note }
 
 router.post(('/:id/restock'), async (req, res) => {
@@ -48,7 +62,7 @@ router.post(('/:id/restock'), async (req, res) => {
             return res.status(404).json({ error: 'product not found' });
         }
         await client.query(
-            'INSERT INTO stock_movement (product_id, change_type, qunatity, note) VALUES ($1,$2,$3,$4)', [id, 'restock', quantity, note || null]);
+            'INSERT INTO stock_movement (product_id, change_type, quantity, note) VALUES ($1,$2,$3,$4)', [id, 'restock', quantity, note || null]);
         await client.query('COMMIT');
         res.json(updated.rows[0])
     } catch (error) {
@@ -64,7 +78,7 @@ router.post(('/:id/restock'), async (req, res) => {
 router.post('/:id/sale', async (req, res) => {
     const { id } = req.params;
     const { quantity, note } = req.body;
-    if (!quantity || quantity <= 0) return res.status(401).json({ error: 'input a valide quantity' });
+    if (!quantity || quantity <= 0) return res.status(400).json({ error: 'input a valide quantity' });
     const client = await pool.connect();
 
     try {

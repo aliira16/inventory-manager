@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import ProductTable from "./components/productTable.jsx";
-// import ProductForm from "./components/ProdcutForm.jsx";
+import ProductTable from "./components/ProductTable.jsx";
+import ProductForm from "./components/ProdcutForm.jsx";
 import LowStockBanner from "./components/LowStockBanner.jsx";
 import SearchFilterBar from "./components/SearchFilterBar.jsx";
 import "./index.css";
@@ -67,10 +67,11 @@ function App() {
         </div>
       )}
       <LowStockBanner products={products.filter(p => p.low_stock)} />
+      <ProductForm categories={categories} onAdd={handleAddProduct} />
       <SearchFilterBar categories={categories} filter={filters} setFilter={setFilters} />
       <ProductTable products={products} onStockChange={handleStockChange} />
     </div>
   )
 };
-{/* <ProductForm categories={categories} onAdd={handleAddProduct} /> */ }
+
 export default App;
